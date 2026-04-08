@@ -1,7 +1,7 @@
 package main
 
 import (
-	"demos/common"
+	"driver/common"
 	"fmt"
 	"net/rpc"
 )
