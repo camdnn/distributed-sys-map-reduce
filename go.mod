@@ -1,3 +1,3 @@
-module example/hello
+module driver
 
 go 1.26.1
