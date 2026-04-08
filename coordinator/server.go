@@ -15,7 +15,7 @@ func (calculator *CalculatorAPI) AddTwo(request common.Request, response *common
 	return nil
 }
 
-func main() {
+func Coordinator(M int, R int) {
 	calculator := new(CalculatorAPI)
 	rpc.Register(calculator)
 
