@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"os"
 )
 
 type CalculatorAPI struct{}
@@ -15,7 +16,7 @@ func (calculator *CalculatorAPI) AddTwo(request common.Request, response *common
 	return nil
 }
 
-func Coordinator(M int, R int) {
+func Coordinator(M int, R int, file *os.File) {
 	calculator := new(CalculatorAPI)
 	rpc.Register(calculator)
 
