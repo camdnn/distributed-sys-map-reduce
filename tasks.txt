@@ -1,0 +1,42 @@
+Coordinator -> Server
+Workers -> Client
+
+Driver 
+
+Coordinator(M, R)===============
+Maps (M) : 9, also # of splits
+Reduce (R) : 3
+
+task queue 
+[M1, M2, M3, M4, M5, M6, M7, M8, M9, R1, R2, R3]
+
+for {
+    if a listener hears a connection request 
+      send split to worker while splits run is > 9
+
+    
+  }
+
+WORKER TOLERANCE:
+if worker has been working for certain time:
+  assume timeout and requeue the task  = 10 seconds
+  requeue all tasks even if finished
+
+
+PERFORMANCE
+  use a combiner for each local worker function
+
+
+
+WORKER =====================
+(file transfer is from worker to worker)
+let reducer know what files to read from 
+
+locally stored intermediate files
+involve with mapping -> rpc output between files
+worker remains idle with no work 
+
+
+
+
+
