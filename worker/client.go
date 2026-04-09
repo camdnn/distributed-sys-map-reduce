@@ -11,7 +11,8 @@ func main() {
 	client, _ := rpc.Dial("tcp", "localhost:7777")
 
 	request := common.Request{}
-	var response = "question"
+	var response = common.Response{}
+
 	client.Call("CalculatorAPI.AddTwo", request, &response)
 
 	fmt.Printf("Response from server: %v\n", response)
