@@ -7,3 +7,9 @@ type Request struct {
 type Response struct {
 	R int
 }
+
+type RequestRPC struct {
+	funType    string
+	filename   string
+	inProgress bool
+}
