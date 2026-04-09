@@ -8,7 +8,7 @@ import (
 
 const M = 9
 const R = 3
-const filename = "../dao.txt"
+const filename = "../treasure_island.txt"
 
 func main() {
 	file, err := os.Open(filename)
