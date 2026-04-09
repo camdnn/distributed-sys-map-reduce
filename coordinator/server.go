@@ -1,24 +1,37 @@
 package main
 
 import (
-	"driver/common"
 	"fmt"
 	"net"
 	"net/rpc"
 	"os"
 )
 
-type CalculatorAPI struct{}
+// type CalculatorAPI struct{}
+type CoordinatorAPI struct{}
 
-func (calculator *CalculatorAPI) AddTwo(request common.Request, response *common.Response) error {
-	response.R = request.A + request.B
-	fmt.Printf("request: %v, response:%v\n", request, response)
-	return nil
-}
+//func (calculator *CalculatorAPI) AddTwo(request common.Request, response *common.Response) error {
+//	response.R = request.A + request.B
+//	fmt.Printf("request: %v, response:%v\n", request, response)
+//	return nil
+//}
 
 func Coordinator(M int, R int, file *os.File) {
-	calculator := new(CalculatorAPI)
-	rpc.Register(calculator)
+	coordinatorApi := new(CoordinatorAPI)
+	rpc.Register(coordinatorApi)
+
+	//queue := make([]common.Request, 0, M+R)
+
+	go listenForWorkers()
+
+	for {
+
+	}
+
+}
+
+func listenForWorkers() {
+	fmt.Println("listening")
 
 	listener, _ := net.Listen("tcp", "localhost:7777")
 
@@ -29,4 +42,5 @@ func Coordinator(M int, R int, file *os.File) {
 		fmt.Println("Connection accepted..")
 		go rpc.ServeConn(conn)
 	}
+
 }

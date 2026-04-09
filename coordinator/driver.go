@@ -8,7 +8,7 @@ import (
 
 const M = 9
 const R = 3
-const filename = ""
+const filename = "../dao.txt"
 
 func main() {
 	file, err := os.Open(filename)
@@ -16,6 +16,7 @@ func main() {
 		log.Fatal("os.OpenFile", err)
 	}
 	defer file.Close()
+
 	Coordinator(M, R, file)
 
 	fmt.Println("Successfully ran file")
