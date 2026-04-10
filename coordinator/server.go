@@ -18,11 +18,44 @@ type CoordinatorAPI struct {
 	tasks []common.Task // the task queue
 }
 
-// IN PROG: used by idle workers
+// Used by idle workers
 func (coordinator *CoordinatorAPI) requestTask(request common.Request, response *common.Response) error {
 	coordinator.mu.Lock()
 	defer coordinator.mu.Unlock()
+
+	// get the first task from the queue
+	task, tasks, isValid := getTask(coordinator.tasks)
+
+	if !isValid {
+		return fmt.Errorf("no tasks availiable")
+	}
+
+	// update the queue in the coordinator
+	coordinator.tasks = tasks
+
+	// set the task to be in progress
+	task.InProgress = true
+
+	// send the task in the response
+	response.Task = task
 	return nil
+}
+
+// returns task, updated queue, and if it's a valid task
+func getTask(queue []common.Task) (common.Task, []common.Task, bool) {
+	// pop off the front of the queue
+	if len(queue) > 0 {
+		t := queue[0]
+
+		// reassign queue to equal everything after the first element
+		// this acts like popping off the front
+		queue = queue[1:]
+
+		return t, queue, true
+	}
+
+	// if there's nothing in the queue, ret an empty task
+	return common.Task{}, queue, false
 }
 
 func Coordinator(M int, R int, file *os.File) {
@@ -64,7 +97,7 @@ func Coordinator(M int, R int, file *os.File) {
 
 // make a M file and append its lines
 func makeMFile(id int, lines []string) {
-	filename := "../intermediate/file_" + strconv.Itoa(id)
+	filename := "../splits/split_p" + strconv.Itoa(id)
 	fd, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)

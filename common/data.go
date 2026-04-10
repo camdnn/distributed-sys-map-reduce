@@ -15,5 +15,5 @@ type Request struct {
 
 // from controller
 type Response struct {
-	task Task
+	Task Task
 }
