@@ -2,10 +2,11 @@ package common
 
 // all information about a specific task
 type Task struct {
-	taskId     int
-	taskType   string // M or R
-	inProgress bool
-	filename   string
+	TaskID     int
+	TaskType   string // M or R
+	InProgress bool
+	Filename   string
+	R          int //reduce
 }
 
 // from worker
@@ -15,5 +16,5 @@ type Request struct {
 
 // from controller
 type Response struct {
-	task Task
+	Task Task
 }

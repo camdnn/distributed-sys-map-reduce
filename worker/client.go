@@ -22,7 +22,7 @@ func main() {
 
 	client.Call("CoordinatorAPI.requestTask", request, &response)
 
-	if response.FunType == "M" {
+	if response.Task.TaskType == "M" {
 		kv := make(map[string]int)
 		mapping(response, kv)
 	} else {
@@ -35,7 +35,7 @@ func main() {
 // Mapping function
 // recieve a response, and a kv pair
 func mapping(r common.Response, kv map[string]int) error {
-	file, err := os.Open(r.Filename)
+	file, err := os.Open(r.Task.Filename)
 	if err != nil {
 		log.Println("OpenFile: ", err)
 		return err
@@ -50,8 +50,9 @@ func mapping(r common.Response, kv map[string]int) error {
 		}
 	}
 
-	for key, value := range kv {
-		fileNo := ihash(key) % r.R
+	for key := range kv {
+		fileNo := ihash(key) % r.Task.R
+		fmt.Println("FILENO: ", fileNo)
 
 	}
 
