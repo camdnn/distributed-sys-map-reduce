@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"driver/common"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -35,6 +36,7 @@ func main() {
 // Mapping function
 // recieve a response, and a kv pair
 func mapping(r common.Response, kv map[string]int) error {
+	// open the map function
 	file, err := os.Open(r.Task.Filename)
 	if err != nil {
 		log.Println("OpenFile: ", err)
@@ -42,6 +44,7 @@ func mapping(r common.Response, kv map[string]int) error {
 	}
 	defer file.Close()
 
+	// create key value pairs for each word
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -50,12 +53,78 @@ func mapping(r common.Response, kv map[string]int) error {
 		}
 	}
 
-	for key := range kv {
-		fileNo := ihash(key) % r.Task.R
-		fmt.Println("FILENO: ", fileNo)
-
+	for key, value := range kv {
+		fmt.Println("Key: ", key)
+		fmt.Println("Value: ", value)
 	}
 
+	// init intermediate files into a list
+	files := initFiles(r.Task.R)
+	if files == nil {
+		log.Fatal("failed to init any intermediate files")
+	}
+
+	// clean all files when done
+	defer func() {
+		for _, f := range files {
+			if f != nil {
+				f.Close()
+			}
+		}
+	}()
+
+	err = writeToFile(files, kv, r.Task.R)
+	if err != nil {
+		return fmt.Errorf("failed to open file %w", err)
+	}
+
+	return nil
+
+}
+
+// initialize intermediate files for wokers
+func initFiles(R int) []*os.File {
+	files := make([]*os.File, R)
+	for i := range R {
+		filename := fmt.Sprintf("intermediate_%d.json", i)
+
+		fd, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+
+			// clean up already opened files before returning
+			for j := range i {
+				files[j].Close()
+			}
+			log.Println("Failed to open intermediate file: ", i, err)
+			return nil
+		}
+
+		files[i] = fd
+	}
+	return files
+}
+
+type KV struct {
+	Key   string
+	Value int
+}
+
+// writiing the kv pairs to a intermediate file
+func writeToFile(files []*os.File, kv map[string]int, R int) error {
+
+	// init encoders for each files
+	encoders := make([]*json.Encoder, R)
+	for i, file := range files {
+		encoders[i] = json.NewEncoder(file)
+	}
+
+	for key, value := range kv {
+		fileNo := ihash(key) % R
+		err := encoders[fileNo].Encode(KV{Key: key, Value: value})
+		if err != nil {
+			return fmt.Errorf("failed to encode key value pair: %w", err)
+		}
+	}
 	return nil
 
 }
