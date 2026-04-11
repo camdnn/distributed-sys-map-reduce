@@ -9,17 +9,26 @@ import (
 	"net/rpc"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
 // the coordinatorAPI along with all relevant information
 type CoordinatorAPI struct {
-	mu    sync.Mutex    // mutex lock
-	tasks []common.Task // the task queue
+	mu         *sync.Mutex   // mutex lock
+	tasks      []common.Task // the task queue
+	inProgress []common.Task // list of tasks that are in prog
+	R          int
+}
+
+// get the R value from the coordinator to the worker
+func (c *CoordinatorAPI) getR(request common.Request, response *int) error {
+	*response = c.R
+	return nil
 }
 
 // Used by idle workers
-func (coordinator *CoordinatorAPI) requestTask(request common.Request, response *common.Response) error {
+func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response *common.Response) error {
 	coordinator.mu.Lock()
 	defer coordinator.mu.Unlock()
 
@@ -35,6 +44,9 @@ func (coordinator *CoordinatorAPI) requestTask(request common.Request, response 
 
 	// set the task to be in progress
 	task.InProgress = true
+
+	// add the task to inProgress
+	coordinator.inProgress = append(coordinator.inProgress, task)
 
 	// send the task in the response
 	response.Task = task
@@ -69,8 +81,38 @@ func Coordinator(M int, R int, file *os.File) {
 
 	fmt.Println("Number of splits = %d\n", num_splits)
 
-	taskQueue := make([]common.Task, 0, M+R)
+	total_tasks := M + R
 
+	// make the queue and populate it
+	taskQueue := make([]common.Task, 0, total_tasks)
+
+	for i := 0; i < total_tasks; i++ {
+		var t common.Task
+		if i < M {
+			t = common.Task{
+				TaskID:     i,
+				TaskType:   "M",
+				InProgress: false,
+				Filename:   fmt.Sprintf("../splits/split_p%d", i),
+				R:          R,
+			}
+
+		} else {
+			t = common.Task{
+				TaskID:     i,
+				TaskType:   "R",
+				InProgress: false,
+				Filename:   "../output.txt",
+				R:          R,
+			}
+		}
+
+		// append the task to the queue
+		taskQueue = append(taskQueue, t)
+
+	}
+
+	// make the split files
 	for i := 0; i < M; i++ {
 		start := i * num_splits
 		end := start + num_splits
@@ -83,6 +125,12 @@ func Coordinator(M int, R int, file *os.File) {
 
 	// establish the RPC API
 	coordinatorApi := new(CoordinatorAPI)
+	coordinatorApi.inProgress = make([]common.Task, 0)
+	coordinatorApi.mu = new(sync.Mutex)
+	coordinatorApi.R = R
+	coordinatorApi.tasks = taskQueue
+
+	// register it
 	rpc.Register(coordinatorApi)
 
 	// spawn a thread looking for new connections
@@ -92,6 +140,10 @@ func Coordinator(M int, R int, file *os.File) {
 	for len(taskQueue) > 0 {
 
 	}
+
+	// queue must be empty, so return
+
+	return
 
 }
 
@@ -120,6 +172,15 @@ func getNonEmptyLines(f *os.File) ([]string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		words := strings.Split(line, " ")
+
+		// lower all the words
+		for i := range len(words) {
+			words[i] = strings.ToLower(words[i])
+		}
+
+		line = strings.Join(words, " ")
+
 		if len(line) > 0 {
 			lines = append(lines, line)
 		}
@@ -127,24 +188,6 @@ func getNonEmptyLines(f *os.File) ([]string, error) {
 
 	return lines, scanner.Err()
 }
-
-// // get the non-empty line count of the file
-// func getLineCount(f *os.File) (int, error) {
-// 	scanner := bufio.NewScanner(f)
-// 	count := 0
-
-// 	for scanner.Scan() {
-// 		if len(scanner.Text()) != 0 {
-// 			count++
-// 		}
-// 	}
-
-// 	// going through the file would bring the file ptr to the end
-// 	// so seeking would put it back at the beginning
-// 	f.Seek(0, io.SeekStart)
-
-// 	return count, scanner.Err()
-// }
 
 func listenForWorkers() {
 	fmt.Println("listening")
