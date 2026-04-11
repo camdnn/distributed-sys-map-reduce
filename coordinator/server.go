@@ -15,9 +15,9 @@ import (
 
 // the coordinatorAPI along with all relevant information
 type CoordinatorAPI struct {
-	mu         *sync.Mutex   // mutex lock
-	tasks      []common.Task // the task queue
-	inProgress []common.Task // list of tasks that are in prog
+	mu         *sync.Mutex         // mutex lock
+	tasks      []common.Task       // the task queue
+	inProgress map[int]common.Task // maps worker id to its job
 	R          int
 }
 
@@ -31,6 +31,13 @@ func (c *CoordinatorAPI) getR(request common.Request, response *int) error {
 func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response *common.Response) error {
 	coordinator.mu.Lock()
 	defer coordinator.mu.Unlock()
+
+	// remove the recent job from the in progress list,
+	// since the worker is asking for another task
+	// 	it must be done with the last one
+	if _, ok := coordinator.inProgress[request.WorkerID]; ok {
+		delete(coordinator.inProgress, request.WorkerID)
+	}
 
 	// get the first task from the queue
 	task, tasks, isValid := getTask(coordinator.tasks)
@@ -46,7 +53,7 @@ func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response 
 	task.InProgress = true
 
 	// add the task to inProgress
-	coordinator.inProgress = append(coordinator.inProgress, task)
+	coordinator.inProgress[request.WorkerID] = task
 
 	// send the task in the response
 	response.Task = task
@@ -125,7 +132,7 @@ func Coordinator(M int, R int, file *os.File) {
 
 	// establish the RPC API
 	coordinatorApi := new(CoordinatorAPI)
-	coordinatorApi.inProgress = make([]common.Task, 0)
+	coordinatorApi.inProgress = make(map[int]common.Task, 0)
 	coordinatorApi.mu = new(sync.Mutex)
 	coordinatorApi.R = R
 	coordinatorApi.tasks = taskQueue
