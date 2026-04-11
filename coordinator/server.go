@@ -16,7 +16,7 @@ import (
 // the coordinatorAPI along with all relevant information
 type CoordinatorAPI struct {
 	mu         *sync.Mutex         // mutex lock
-	tasks      []common.Task       // the task queue
+	tasks      *[]common.Task      // the task queue
 	inProgress map[int]common.Task // maps worker id to its job
 	R          int
 }
@@ -35,9 +35,7 @@ func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response 
 	// remove the recent job from the in progress list,
 	// since the worker is asking for another task
 	// 	it must be done with the last one
-	if _, ok := coordinator.inProgress[request.WorkerID]; ok {
-		delete(coordinator.inProgress, request.WorkerID)
-	}
+	delete(coordinator.inProgress, request.WorkerID)
 
 	// get the first task from the queue
 	task, tasks, isValid := getTask(coordinator.tasks)
@@ -57,12 +55,16 @@ func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response 
 
 	// send the task in the response
 	response.Task = task
+
+	printTask(response.Task)
+
 	return nil
 }
 
 // returns task, updated queue, and if it's a valid task
-func getTask(queue []common.Task) (common.Task, []common.Task, bool) {
+func getTask(q *[]common.Task) (common.Task, *[]common.Task, bool) {
 	// pop off the front of the queue
+	queue := *q
 	if len(queue) > 0 {
 		t := queue[0]
 
@@ -70,11 +72,11 @@ func getTask(queue []common.Task) (common.Task, []common.Task, bool) {
 		// this acts like popping off the front
 		queue = queue[1:]
 
-		return t, queue, true
+		return t, &queue, true
 	}
 
 	// if there's nothing in the queue, ret an empty task
-	return common.Task{}, queue, false
+	return common.Task{}, &queue, false
 }
 
 func Coordinator(M int, R int, file *os.File) {
@@ -82,18 +84,18 @@ func Coordinator(M int, R int, file *os.File) {
 	// establish all task information before initializing the RPC
 	lines, _ := getNonEmptyLines(file)
 
-	fmt.Println("File lines = %d\n", len(lines))
+	fmt.Printf("File lines = %d\n", len(lines))
 
 	num_splits := len(lines) / M
 
-	fmt.Println("Number of splits = %d\n", num_splits)
+	fmt.Printf("Number of splits = %d\n", num_splits)
 
 	total_tasks := M + R
 
 	// make the queue and populate it
 	taskQueue := make([]common.Task, 0, total_tasks)
 
-	for i := 0; i < total_tasks; i++ {
+	for i := range total_tasks {
 		var t common.Task
 		if i < M {
 			t = common.Task{
@@ -135,7 +137,7 @@ func Coordinator(M int, R int, file *os.File) {
 	coordinatorApi.inProgress = make(map[int]common.Task, 0)
 	coordinatorApi.mu = new(sync.Mutex)
 	coordinatorApi.R = R
-	coordinatorApi.tasks = taskQueue
+	coordinatorApi.tasks = &taskQueue
 
 	// register it
 	rpc.Register(coordinatorApi)
@@ -148,10 +150,11 @@ func Coordinator(M int, R int, file *os.File) {
 
 	}
 
-	// queue must be empty, so return
+	// queue must be empty, end
+}
 
-	return
-
+func printTask(t common.Task) {
+	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n", t.TaskID, t.TaskType, t.InProgress, t.Filename, t.R)
 }
 
 // make a M file and append its lines

@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-const M = 9
-const R = 3
+const M int = 9
+const R int = 3
 const filename = "../treasure_island.txt"
 
 func main() {
