@@ -95,7 +95,7 @@ func Coordinator(M int, R int, file *os.File) {
 
 	// make the queue and populate it
 	taskQueue := make([]common.Task, 0, total_tasks)
-
+	reducerTask := 0
 	for i := range total_tasks {
 		var t common.Task
 		if i < M {
@@ -109,12 +109,13 @@ func Coordinator(M int, R int, file *os.File) {
 
 		} else {
 			t = common.Task{
-				TaskId:     i,
+				TaskId:     reducerTask,
 				TaskType:   "R",
 				InProgress: false,
-				Filename:   "../output.txt",
-				R:          R,
+				Filename:   "../output.json",
+				R:          M,
 			}
+			reducerTask++
 		}
 
 		// append the task to the queue

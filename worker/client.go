@@ -44,7 +44,6 @@ func main() {
 			}
 
 			clear(kv) //empties map, same allocation
-
 		} else if response.Task.TaskType == "R" {
 
 			// init intermediate files into a list
@@ -56,6 +55,11 @@ func main() {
 			reduced := make(map[string]int)
 			if err := reducer(reduced, filesWrite); err != nil {
 				log.Fatal(err)
+			}
+
+			fmt.Println("Print reduced")
+			for key, value := range reduced {
+				fmt.Println(key, value)
 			}
 
 			if err := commitFiles(reduced, response.Task.Filename); err != nil {
@@ -161,9 +165,10 @@ func openFilesForWriting(r *common.Response) []*os.File {
 // initialize intermediate files for wokers
 // // R = # of map
 func openFilesForReading(r *common.Response) ([]*os.File, error) {
-	files := make([]*os.File, r.Task.M)
-	for i := range r.Task.M {
-		filename := fmt.Sprintf("mr-%d-%d.json", r.Task.TaskId, i)
+	fmt.Println("TASK ID FOR REDUCERS:", r.Task.TaskId)
+	files := make([]*os.File, r.Task.R)
+	for i := range r.Task.R {
+		filename := fmt.Sprintf("mr-%d-%d.json", i, r.Task.TaskId)
 		fmt.Printf("opened %s for reading\n", filename)
 
 		fd, err := os.Open(filename)
