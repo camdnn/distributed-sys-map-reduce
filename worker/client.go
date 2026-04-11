@@ -16,21 +16,23 @@ func main() {
 
 	client, _ := rpc.Dial("tcp", "localhost:7777")
 
-	request := common.Request{}
+	request := common.Request{WorkerID: 1}
 
 	// add R value for response struct
 	var response = common.Response{}
 
-	client.Call("CoordinatorAPI.requestTask", request, &response)
+	client.Call("CoordinatorAPI.RequestTask", request, &response)
+
+	fmt.Printf("Response from server: %v\n", response)
 
 	if response.Task.TaskType == "M" {
+		fmt.Println("got an m task")
 		kv := make(map[string]int)
 		mapping(response, kv)
 	} else {
 
 	}
 
-	fmt.Printf("Response from server: %v\n", response)
 }
 
 // Mapping function
