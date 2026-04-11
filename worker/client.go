@@ -20,7 +20,7 @@ func main() {
 
 	for {
 		if err := client.Call("CoordinatorAPI.RequestTask", request, &response); err != nil {
-			log.Fatal("unable to connect to server:", err)
+			log.Fatal("unable to connect to server: ", err)
 		}
 		fmt.Printf("Response from server: %v\n", response)
 
@@ -28,7 +28,7 @@ func main() {
 			// init intermediate files into a list
 			files := openFilesForWriting(&response)
 			if files == nil {
-				log.Fatal("failed to init any intermediate files")
+				log.Fatal("OPEN, WRITE: failed to init any intermediate files")
 			}
 
 			// create kv pairs
@@ -48,14 +48,14 @@ func main() {
 		} else if response.Task.TaskType == "R" {
 
 			// init intermediate files into a list
-			filesWrite := openFilesForReading(&response)
-			if filesWrite == nil {
-				log.Fatal("failed to init any intermediate files")
+			filesWrite, err := openFilesForReading(&response)
+			if err != nil {
+				log.Fatal(err)
 			}
 
 			reduced := make(map[string]int)
 			if err := reducer(reduced, filesWrite); err != nil {
-				log.Fatal("Error in reducer")
+				log.Fatal(err)
 			}
 
 			if err := commitFiles(reduced, response.Task.Filename); err != nil {
@@ -105,6 +105,7 @@ func reducer(reduced map[string]int, files []*os.File) error {
 
 	// close all files after reading
 	for _, f := range files {
+		fmt.Println(f)
 		if err := f.Close(); err != nil {
 			return fmt.Errorf("close intermediate file: %w", err)
 		}
@@ -115,7 +116,7 @@ func reducer(reduced map[string]int, files []*os.File) error {
 
 // Commit files to final output file
 func commitFiles(reduced map[string]int, outputPath string) error {
-	file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("open output file error: %w", err)
 	}
@@ -123,10 +124,13 @@ func commitFiles(reduced map[string]int, outputPath string) error {
 
 	outFile := json.NewEncoder(file)
 	for key, value := range reduced {
+		fmt.Printf("%s: %d\n", key, value)
 		if err := outFile.Encode(KV{Key: key, Value: value}); err != nil {
 			fmt.Println("error encoding key value pair")
 		}
 	}
+
+	fmt.Println("End commit")
 
 	return nil
 }
@@ -135,7 +139,9 @@ func commitFiles(reduced map[string]int, outputPath string) error {
 func openFilesForWriting(r *common.Response) []*os.File {
 	files := make([]*os.File, r.Task.R)
 	for i := range r.Task.R {
-		filename := fmt.Sprintf("mr-%d-%d.json", r.Task.TaskID, i)
+		fmt.Printf("taskID is %d\ni is %d\n", r.Task.TaskId, i)
+		filename := fmt.Sprintf("mr-%d-%d.json", r.Task.TaskId, i)
+		fmt.Printf("opened %s for writing\n", filename)
 
 		fd, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
@@ -144,7 +150,6 @@ func openFilesForWriting(r *common.Response) []*os.File {
 			for j := range i {
 				files[j].Close()
 			}
-			log.Println("Failed to open intermediate file: ", i, err)
 			return nil
 		}
 
@@ -155,10 +160,11 @@ func openFilesForWriting(r *common.Response) []*os.File {
 
 // initialize intermediate files for wokers
 // // R = # of map
-func openFilesForReading(r *common.Response) []*os.File {
-	files := make([]*os.File, r.Task.R)
-	for i := range r.Task.R {
-		filename := fmt.Sprintf("mr-%d-%d.json", i, r.Task.TaskID)
+func openFilesForReading(r *common.Response) ([]*os.File, error) {
+	files := make([]*os.File, r.Task.M)
+	for i := range r.Task.M {
+		filename := fmt.Sprintf("mr-%d-%d.json", r.Task.TaskId, i)
+		fmt.Printf("opened %s for reading\n", filename)
 
 		fd, err := os.Open(filename)
 		if err != nil {
@@ -167,13 +173,12 @@ func openFilesForReading(r *common.Response) []*os.File {
 			for j := range i {
 				files[j].Close()
 			}
-			log.Println("Failed to open intermediate file: ", i, err)
-			return nil
+			return nil, err
 		}
 
 		files[i] = fd
 	}
-	return files
+	return files, nil
 }
 
 type KV struct {

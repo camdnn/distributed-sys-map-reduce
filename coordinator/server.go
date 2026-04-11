@@ -19,6 +19,7 @@ type CoordinatorAPI struct {
 	tasks      *[]common.Task      // the task queue
 	inProgress map[int]common.Task // maps worker id to its job
 	R          int
+	M          int
 }
 
 // get the R value from the coordinator to the worker
@@ -99,7 +100,7 @@ func Coordinator(M int, R int, file *os.File) {
 		var t common.Task
 		if i < M {
 			t = common.Task{
-				TaskID:     i,
+				TaskId:     i,
 				TaskType:   "M",
 				InProgress: false,
 				Filename:   fmt.Sprintf("../splits/split_p%d", i),
@@ -108,7 +109,7 @@ func Coordinator(M int, R int, file *os.File) {
 
 		} else {
 			t = common.Task{
-				TaskID:     i,
+				TaskId:     i,
 				TaskType:   "R",
 				InProgress: false,
 				Filename:   "../output.txt",
@@ -138,6 +139,7 @@ func Coordinator(M int, R int, file *os.File) {
 	coordinatorApi.mu = new(sync.Mutex)
 	coordinatorApi.R = R
 	coordinatorApi.tasks = &taskQueue
+	coordinatorApi.M = M
 
 	// register it
 	rpc.Register(coordinatorApi)
@@ -154,7 +156,7 @@ func Coordinator(M int, R int, file *os.File) {
 }
 
 func printTask(t common.Task) {
-	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n", t.TaskID, t.TaskType, t.InProgress, t.Filename, t.R)
+	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n", t.TaskId, t.TaskType, t.InProgress, t.Filename, t.R)
 }
 
 // make a M file and append its lines

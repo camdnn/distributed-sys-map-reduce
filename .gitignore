@@ -1,2 +1,4 @@
 splits/split_p*
 worker/intermediate*
+worker/*.json
+output.txt

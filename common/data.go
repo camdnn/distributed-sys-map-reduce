@@ -2,11 +2,12 @@ package common
 
 // all information about a specific task
 type Task struct {
-	TaskID     int
+	TaskId     int
 	TaskType   string // M or R
 	InProgress bool
 	Filename   string
-	R          int //reduce
+	R          int
+	M          int
 }
 
 // from worker
