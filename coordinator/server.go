@@ -211,7 +211,7 @@ func requeueTasks(c *CoordinatorAPI, wId int) {
 }
 
 func printTask(t common.Task) {
-	fmt.Printf("id: %d, type: %s, done: %t, fname: %s, R: %d\n, M: %d\n", t.TaskId, t.TaskType, t.Done, t.Filename, t.R, t.M)
+	fmt.Printf("id: %d, type: %s, done: %t, fname: %s, R: %d, M: %d\n", t.TaskId, t.TaskType, t.Done, t.Filename, t.R, t.M)
 }
 
 // make a M file and append its lines

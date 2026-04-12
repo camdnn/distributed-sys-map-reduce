@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-const M int = 9
-const R int = 3
-const filename = "../treasure_island.txt"
+const M int = 100
+const R int = 10
+const filename = "../warandpeace.txt"
 
 func main() {
 	file, err := os.Open(filename)
