@@ -1,4 +1,6 @@
 #!/bin/bash
+./clean_intermediate.sh
+
 go run . &
 
 sleep 2 

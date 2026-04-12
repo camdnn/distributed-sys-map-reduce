@@ -11,38 +11,35 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // the coordinatorAPI along with all relevant information
 type CoordinatorAPI struct {
-	mu         *sync.Mutex         // mutex lock
-	tasks      *[]common.Task      // the task queue
-	inProgress map[int]common.Task // maps worker id to its job
-	R          int
-	M          int
-}
-
-// get the R value from the coordinator to the worker
-func (c *CoordinatorAPI) getR(request common.Request, response *int) error {
-	*response = c.R
-	return nil
+	mu             *sync.Mutex       // mutex lock
+	mTasks         *[]common.Task    // the task queue
+	rTasks         *[]common.Task    // the task queue
+	inProgress     map[int]time.Time // maps worker id to its job to its start time
+	workersToTasks map[int][]common.Task
+	R              int
+	M              int
 }
 
 // Used by idle workers
-func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response *common.Response) error {
-	coordinator.mu.Lock()
-	defer coordinator.mu.Unlock()
+func (c *CoordinatorAPI) RequestTask(request common.Request, response *common.Response) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// remove the recent job from the in progress list,
 	// since the worker is asking for another task
 	// 	it must be done with the last one
-	delete(coordinator.inProgress, request.WorkerID)
+	delete(c.inProgress, request.WorkerID)
 
 	// get the first task from the queue
-	task, tasks, isValid := getTask(coordinator.tasks)
+	task, mtasks, rtasks, isValid := getTask(c.mTasks, c.rTasks)
 
 	if !isValid {
-		if len(coordinator.inProgress) == 0 {
+		if len(c.inProgress) == 0 {
 			response.Task = common.Task{
 				TaskId:   -1,
 				TaskType: "",
@@ -56,10 +53,12 @@ func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response 
 	}
 
 	// update the queue in the coordinator
-	coordinator.tasks = tasks
+	c.mTasks = mtasks
+	c.rTasks = rtasks
 
 	// add the task to inProgress
-	coordinator.inProgress[request.WorkerID] = task
+	c.inProgress[request.WorkerID] = time.Now()
+	c.workersToTasks[request.WorkerID] = append(c.workersToTasks[request.WorkerID], task)
 
 	// send the task in the response
 	response.Task = task
@@ -70,21 +69,34 @@ func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response 
 }
 
 // returns task, updated queue, and if it's a valid task
-func getTask(q *[]common.Task) (common.Task, *[]common.Task, bool) {
+func getTask(mq *[]common.Task, rq *[]common.Task) (common.Task, *[]common.Task, *[]common.Task, bool) {
 	// pop off the front of the queue
-	queue := *q
-	if len(queue) > 0 {
-		t := queue[0]
+	mqueue := *mq
+	rqueue := *rq
+
+	// for m
+	if len(mqueue) > 0 {
+		t := mqueue[0]
 
 		// reassign queue to equal everything after the first element
 		// this acts like popping off the front
-		queue = queue[1:]
+		mqueue = mqueue[1:]
 
-		return t, &queue, true
+		return t, &mqueue, &rqueue, true
+	}
+
+	if len(mqueue) > 0 {
+		t := rqueue[0]
+
+		// reassign queue to equal everything after the first element
+		// this acts like popping off the front
+		rqueue = rqueue[1:]
+
+		return t, &mqueue, &rqueue, true
 	}
 
 	// if there's nothing in the queue, ret an empty task
-	return common.Task{}, &queue, false
+	return common.Task{}, &mqueue, &rqueue, false
 }
 
 func Coordinator(M int, R int, file *os.File) {
@@ -98,38 +110,34 @@ func Coordinator(M int, R int, file *os.File) {
 
 	fmt.Printf("Number of splits = %d\n", num_splits)
 
-	total_tasks := M + R
-
 	// make the queue and populate it
-	taskQueue := make([]common.Task, 0, total_tasks)
-	reducerTask := 0
-	for i := range total_tasks {
-		var t common.Task
-		if i < M {
-			t = common.Task{
-				TaskId:   i,
-				TaskType: "M",
-				Done:     false,
-				Filename: fmt.Sprintf("../splits/split_p%d", i),
-				R:        R,
-				M:        M,
-			}
+	mTaskQueue := make([]common.Task, M)
+	rTaskQueue := make([]common.Task, R)
 
-		} else {
-			t = common.Task{
-				TaskId:   reducerTask,
-				TaskType: "R",
-				Done:     false,
-				Filename: "../output.json",
-				R:        R,
-				M:        M,
-			}
-			reducerTask++
+	for i := range mTaskQueue {
+		t := common.Task{
+			TaskId:   i,
+			TaskType: "M",
+			Done:     false,
+			Filename: fmt.Sprintf("../splits/split_p%d", i),
+			R:        R,
+			M:        M,
 		}
 
-		// append the task to the queue
-		taskQueue = append(taskQueue, t)
+		mTaskQueue[i] = t
+	}
 
+	for i := range rTaskQueue {
+		t := common.Task{
+			TaskId:   i,
+			TaskType: "M",
+			Done:     false,
+			Filename: fmt.Sprintf("../splits/split_p%d", i),
+			R:        R,
+			M:        M,
+		}
+
+		rTaskQueue[i] = t
 	}
 
 	// make the split files
@@ -145,10 +153,12 @@ func Coordinator(M int, R int, file *os.File) {
 
 	// establish the RPC API
 	coordinatorApi := new(CoordinatorAPI)
-	coordinatorApi.inProgress = make(map[int]common.Task, 0)
+	coordinatorApi.inProgress = make(map[int]time.Time, 0)
+	coordinatorApi.workersToTasks = make(map[int][]common.Task, 0)
 	coordinatorApi.mu = new(sync.Mutex)
 	coordinatorApi.R = R
-	coordinatorApi.tasks = &taskQueue
+	coordinatorApi.mTasks = &mTaskQueue
+	coordinatorApi.rTasks = &rTaskQueue
 	coordinatorApi.M = M
 
 	// register it
@@ -157,16 +167,47 @@ func Coordinator(M int, R int, file *os.File) {
 	// spawn a thread looking for new connections
 	go listenForWorkers()
 
-	// while the queue isn't empty, loop
-	for len(taskQueue) > 0 {
+	for {
+		coordinatorApi.mu.Lock()
 
+		total := len(mTaskQueue) + len(rTaskQueue) + len(coordinatorApi.inProgress)
+
+		if total == 0 {
+			coordinatorApi.mu.Unlock()
+			break
+		}
+
+		for wId, startTime := range coordinatorApi.inProgress {
+			if time.Since(startTime) > (time.Second * 10) {
+				requeueTasks(coordinatorApi, wId)
+			}
+		}
+
+		coordinatorApi.mu.Unlock()
+
+		// sleep so mu can be unlocked giving other's access
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	// queue must be empty, end
 }
 
+func requeueTasks(c *CoordinatorAPI, wId int) {
+	tasksToQueue := c.workersToTasks[wId]
+	mTasks := *c.mTasks
+	rTasks := *c.rTasks
+
+	for _, task := range tasksToQueue {
+		if task.TaskType == "M" {
+			mTasks = append(mTasks, task)
+		} else {
+			rTasks = append(rTasks, task)
+		}
+	}
+}
+
 func printTask(t common.Task) {
-	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n, M: %d\n", t.TaskId, t.TaskType, t.Done, t.Filename, t.R, t.M)
+	fmt.Printf("id: %d, type: %s, done: %t, fname: %s, R: %d\n, M: %d\n", t.TaskId, t.TaskType, t.Done, t.Filename, t.R, t.M)
 }
 
 // make a M file and append its lines

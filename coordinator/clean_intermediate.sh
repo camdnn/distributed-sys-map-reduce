@@ -3,3 +3,5 @@
 rm ../intermediate/*
 rm ../splits/*
 rm ../worker/*.json
+rm ./*.json
+rm ../output*.json
