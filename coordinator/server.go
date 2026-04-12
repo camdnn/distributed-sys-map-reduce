@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var done = false
+
 // the coordinatorAPI along with all relevant information
 type CoordinatorAPI struct {
 	mu             *sync.Mutex       // mutex lock
@@ -100,6 +102,7 @@ func getTask(mq *[]common.Task, rq *[]common.Task) (common.Task, *[]common.Task,
 }
 
 func Coordinator(M int, R int, file *os.File) {
+	fmt.Println("COORDINATOR:")
 
 	// establish all task information before initializing the RPC
 	lines, _ := getNonEmptyLines(file)
@@ -194,6 +197,11 @@ func Coordinator(M int, R int, file *os.File) {
 	}
 
 	// queue must be empty, end
+	done = true
+}
+
+func Done() bool {
+	return done
 }
 
 func requeueTasks(c *CoordinatorAPI, wId int) {
