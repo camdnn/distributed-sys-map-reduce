@@ -26,6 +26,9 @@ func main() {
 	for {
 		var response = common.Response{}
 
+		// DEBUG
+		// time.Sleep(1 * time.Second)
+
 		if err := client.Call("CoordinatorAPI.RequestTask", request, &response); err != nil {
 			// log error
 			log.Printf("WARN: RPC RequestTask failed: %v — retrying in 2s", err)

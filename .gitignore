@@ -2,4 +2,4 @@ splits/split_p*
 worker/intermediate*
 worker/*.json
 coordinator/*.json
-output.txt
+output*.txt
