@@ -85,7 +85,7 @@ func getTask(mq *[]common.Task, rq *[]common.Task) (common.Task, *[]common.Task,
 		return t, &mqueue, &rqueue, true
 	}
 
-	if len(mqueue) > 0 {
+	if len(rqueue) > 0 {
 		t := rqueue[0]
 
 		// reassign queue to equal everything after the first element
@@ -124,18 +124,22 @@ func Coordinator(M int, R int, file *os.File) {
 			M:        M,
 		}
 
+		//printTask(t)
+
 		mTaskQueue[i] = t
 	}
 
 	for i := range rTaskQueue {
 		t := common.Task{
 			TaskId:   i,
-			TaskType: "M",
+			TaskType: "R",
 			Done:     false,
-			Filename: fmt.Sprintf("../splits/split_p%d", i),
+			Filename: fmt.Sprintf("../output%d.json", i),
 			R:        R,
 			M:        M,
 		}
+
+		// printTask(t)
 
 		rTaskQueue[i] = t
 	}
