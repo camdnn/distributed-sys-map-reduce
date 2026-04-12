@@ -34,6 +34,12 @@ func main() {
 			continue
 		}
 
+		// "Done" means the coordinator has no more work — clean shutdown.
+		if response.Task.Done {
+			log.Printf("INFO: worker received shutdown signal, exiting")
+			return
+		}
+
 		// print the response from the server
 		task := response.Task
 		fmt.Printf("Response from server worker: %d, task: %s, filepath: %s, R: %d, M: %d\n", task.TaskId, task.TaskType, task.Filename, task.R, task.M)
