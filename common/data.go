@@ -7,6 +7,7 @@ type Task struct {
 	InProgress bool
 	Filename   string
 	R          int
+	M          int
 }
 
 // from worker

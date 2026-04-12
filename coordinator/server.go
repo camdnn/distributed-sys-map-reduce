@@ -105,6 +105,7 @@ func Coordinator(M int, R int, file *os.File) {
 				InProgress: false,
 				Filename:   fmt.Sprintf("../splits/split_p%d", i),
 				R:          R,
+				M:          M,
 			}
 
 		} else {
@@ -113,7 +114,8 @@ func Coordinator(M int, R int, file *os.File) {
 				TaskType:   "R",
 				InProgress: false,
 				Filename:   "../output.json",
-				R:          M,
+				R:          R,
+				M:          M,
 			}
 			reducerTask++
 		}
@@ -157,7 +159,7 @@ func Coordinator(M int, R int, file *os.File) {
 }
 
 func printTask(t common.Task) {
-	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n", t.TaskId, t.TaskType, t.InProgress, t.Filename, t.R)
+	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n, M: %d\n", t.TaskId, t.TaskType, t.InProgress, t.Filename, t.R, t.M)
 }
 
 // make a M file and append its lines
