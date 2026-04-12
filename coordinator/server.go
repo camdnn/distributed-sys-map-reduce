@@ -42,14 +42,21 @@ func (coordinator *CoordinatorAPI) RequestTask(request common.Request, response 
 	task, tasks, isValid := getTask(coordinator.tasks)
 
 	if !isValid {
+		if len(coordinator.inProgress) == 0 {
+			response.Task = common.Task{
+				TaskId:   -1,
+				TaskType: "",
+				Done:     true,
+				Filename: "",
+				R:        -1,
+				M:        -1,
+			}
+		}
 		return fmt.Errorf("no tasks availiable")
 	}
 
 	// update the queue in the coordinator
 	coordinator.tasks = tasks
-
-	// set the task to be in progress
-	task.InProgress = true
 
 	// add the task to inProgress
 	coordinator.inProgress[request.WorkerID] = task
@@ -100,22 +107,22 @@ func Coordinator(M int, R int, file *os.File) {
 		var t common.Task
 		if i < M {
 			t = common.Task{
-				TaskId:     i,
-				TaskType:   "M",
-				InProgress: false,
-				Filename:   fmt.Sprintf("../splits/split_p%d", i),
-				R:          R,
-				M:          M,
+				TaskId:   i,
+				TaskType: "M",
+				Done:     false,
+				Filename: fmt.Sprintf("../splits/split_p%d", i),
+				R:        R,
+				M:        M,
 			}
 
 		} else {
 			t = common.Task{
-				TaskId:     reducerTask,
-				TaskType:   "R",
-				InProgress: false,
-				Filename:   "../output.json",
-				R:          R,
-				M:          M,
+				TaskId:   reducerTask,
+				TaskType: "R",
+				Done:     false,
+				Filename: "../output.json",
+				R:        R,
+				M:        M,
 			}
 			reducerTask++
 		}
@@ -159,7 +166,7 @@ func Coordinator(M int, R int, file *os.File) {
 }
 
 func printTask(t common.Task) {
-	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n, M: %d\n", t.TaskId, t.TaskType, t.InProgress, t.Filename, t.R, t.M)
+	fmt.Printf("id: %d, type: %s, in prog: %t, fname: %s, R: %d\n, M: %d\n", t.TaskId, t.TaskType, t.Done, t.Filename, t.R, t.M)
 }
 
 // make a M file and append its lines
