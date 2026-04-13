@@ -38,6 +38,7 @@ func main() {
 		}
 
 		// "Done" means the coordinator has no more work — clean shutdown.
+		fmt.Println("response: ", response.Task.Done)
 		if response.Task.Done {
 			log.Printf("INFO: worker received shutdown signal, exiting")
 			return
@@ -209,7 +210,6 @@ func reducer(reduced map[string]int, files []*os.File) error {
 	// close all files after reading
 	var closeErr error
 	for _, f := range files {
-		fmt.Println(f)
 		if err := f.Close(); err != nil {
 			closeErr = fmt.Errorf("close intermediate file: %w", err)
 		}
