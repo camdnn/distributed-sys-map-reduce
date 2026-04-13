@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-const M int = 100
-const R int = 10
+const M int = 9
+const R int = 3
 const filename = "../warandpeace.txt"
 
 func main() {
